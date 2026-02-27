@@ -48,10 +48,8 @@ async function handleRequest(
     );
   }
 
-  const teamId = auth.teamId;
-
   // ── 2. Resolve Connector + Endpoint Config ──
-  const config = await resolveConfig(teamId, slug, method, consumerPath);
+  const config = await resolveConfig(auth.teamId, slug, method, consumerPath);
   if (!config) {
     return buildErrorResponse(
       'NOT_FOUND',
@@ -63,7 +61,8 @@ async function handleRequest(
   }
 
   // ── 3. Verify Team Isolation ──
-  if (!await verifyConnectorAccess(auth, config.connector.id, config.connector.teamId)) {
+  const access = await verifyConnectorAccess(auth, config.connector.id, config.connector.teamId);
+  if (!access.allowed) {
     return buildErrorResponse(
       'NOT_FOUND',
       `Connector not found.`,
@@ -72,6 +71,7 @@ async function handleRequest(
       traceId
     );
   }
+  const teamId = access.resolvedTeamId;
 
   // ── 4. Endpoint Access Check (API key scoping) ──
   if (auth.allowedEndpoints && auth.allowedEndpoints.length > 0) {
