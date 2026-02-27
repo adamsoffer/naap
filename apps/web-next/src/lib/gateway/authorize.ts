@@ -12,7 +12,7 @@ import { createHash } from 'crypto';
 import { prisma } from '@/lib/db';
 import { validateSession } from '@/lib/api/auth';
 import { getAuthToken, getClientIP } from '@/lib/api/response';
-import { personalScopeId } from './scope';
+import { personalScopeId, isPersonalScope } from './scope';
 import type { AuthResult, TeamContext } from './types';
 
 let _authFailLimiter: { consume: (key: string, points?: number) => Promise<{ allowed: boolean }> } | null = null;
@@ -84,7 +84,20 @@ async function authorizeJwt(token: string, request: Request): Promise<AuthResult
     const user = await validateSession(token);
     if (!user) return null;
 
-    const teamId = request.headers.get('x-team-id') || personalScopeId(user.id);
+    const headerTeamId = request.headers.get('x-team-id');
+    let teamId: string;
+
+    if (headerTeamId) {
+      if (isPersonalScope(headerTeamId)) {
+        const scopeUserId = headerTeamId.slice('personal:'.length);
+        if (scopeUserId !== user.id) {
+          return null;
+        }
+      }
+      teamId = headerTeamId;
+    } else {
+      teamId = personalScopeId(user.id);
+    }
 
     return {
       authenticated: true,
