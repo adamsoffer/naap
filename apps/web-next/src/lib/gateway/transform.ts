@@ -77,9 +77,9 @@ function buildUpstreamUrl(
   patternParts.forEach((part, i) => {
     if (part.endsWith('*') && part.startsWith(':')) {
       const catchAllSegments = consumerParts.slice(i);
-      upstreamPath = upstreamPath.replace(part, catchAllSegments.join('/'));
+      upstreamPath = upstreamPath.replaceAll(part, catchAllSegments.join('/'));
     } else if (part.startsWith(':') && consumerParts[i]) {
-      upstreamPath = upstreamPath.replace(part, consumerParts[i]);
+      upstreamPath = upstreamPath.replaceAll(part, consumerParts[i]);
     }
   });
 

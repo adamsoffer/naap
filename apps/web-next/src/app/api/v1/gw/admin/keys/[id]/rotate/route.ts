@@ -40,9 +40,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const keyHash = createHash('sha256').update(rawKey).digest('hex');
   const keyPrefix = rawKey.slice(0, 11);
 
-  // Atomic: create new key, then revoke old (inside transaction)
-  const [newKey] = await prisma.$transaction([
-    prisma.gatewayApiKey.create({
+  const newKey = await prisma.$transaction(async (tx) => {
+    const created = await tx.gatewayApiKey.create({
       data: {
         ...ownerFilter,
         createdBy: ctx.userId,
@@ -59,12 +58,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
         connector: { select: { id: true, slug: true, displayName: true } },
         plan: { select: { id: true, name: true, displayName: true } },
       },
-    }),
-    prisma.gatewayApiKey.update({
-      where: { id },
+    });
+
+    const revoked = await tx.gatewayApiKey.updateMany({
+      where: { id, teamId: ctx.teamId, status: { not: 'revoked' } },
       data: { status: 'revoked', revokedAt: new Date() },
-    }),
-  ]);
+    });
+
+    if (revoked.count !== 1) {
+      throw new Error('API key already rotated or revoked');
+    }
+
+    return created;
+  });
 
   const { keyHash: _, ...safeKey } = newKey;
   return success({

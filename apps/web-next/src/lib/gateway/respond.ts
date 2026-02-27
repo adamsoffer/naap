@@ -13,20 +13,20 @@ import { registry } from './transforms';
 /**
  * Build the consumer-facing response from upstream response.
  */
-export function buildResponse(
+export async function buildResponse(
   config: ResolvedConfig,
   proxyResult: ProxyResult,
   requestId: string | null,
   traceId: string | null
-): Response | Promise<Response> {
+): Promise<Response> {
   const { response, upstreamLatencyMs, cached } = proxyResult;
   const { connector } = config;
 
-  const responseContentType = response.headers.get('content-type') || '';
+  const responseContentType = (response.headers.get('content-type') || '').toLowerCase();
   const mode = resolveResponseMode(connector, responseContentType);
 
   const strategy = registry.getResponse(mode);
-  return strategy.transform({
+  return await strategy.transform({
     upstreamResponse: response,
     connectorSlug: connector.slug,
     responseWrapper: connector.responseWrapper,
@@ -47,7 +47,8 @@ function resolveResponseMode(
   connector: ResolvedConfig['connector'],
   responseContentType: string,
 ): string {
-  if (connector.streamingEnabled && responseContentType.includes('text/event-stream')) {
+  const ct = responseContentType.toLowerCase();
+  if (connector.streamingEnabled && ct.includes('text/event-stream')) {
     return 'streaming';
   }
   if (connector.responseWrapper) {
