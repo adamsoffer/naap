@@ -52,10 +52,8 @@ async function handleRequest(
     );
   }
 
-  const scopeId = auth.teamId;
-
   // ── 2. Resolve Connector + Endpoint Config ──
-  const config = await resolveConfig(scopeId, slug, method, consumerPath);
+  const config = await resolveConfig(auth.teamId, slug, method, consumerPath);
   if (!config) {
     return buildErrorResponse(
       'NOT_FOUND',
@@ -94,6 +92,7 @@ async function handleRequest(
       traceId
     );
   }
+  const scopeId = access.resolvedTeamId;
 
   // ── 5. Endpoint Access Check (API key scoping) ──
   if (auth.allowedEndpoints && auth.allowedEndpoints.length > 0) {
