@@ -52,10 +52,12 @@ export async function resolveSecrets(
           SECRET_CACHE.set(key, { value, expiresAt: Date.now() + SECRET_CACHE_TTL_MS });
         } else {
           secrets[ref] = '';
+          SECRET_CACHE.set(key, { value: '', expiresAt: Date.now() + 30_000 });
         }
       } catch (err) {
         console.error(`[gateway] Failed to resolve secret "${ref}":`, err);
         secrets[ref] = '';
+        SECRET_CACHE.set(key, { value: '', expiresAt: Date.now() + 30_000 });
       }
     })
   );
@@ -112,7 +114,6 @@ export async function deleteSecret(
     SECRET_CACHE.delete(key);
     return true;
   } catch {
-    SECRET_CACHE.delete(key);
     return false;
   }
 }

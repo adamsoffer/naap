@@ -11,6 +11,7 @@ export const basicAuth: AuthStrategy = {
     if (!username && !password) {
       console.warn(`[gateway] auth: secrets "${userRef}"/"${passRef}" not resolved for connector "${ctx.connectorSlug}"`);
       ctx.headers.set('X-Gateway-Warning', 'missing-auth-secret');
+      return;
     }
 
     const encoded = Buffer.from(`${username}:${password}`).toString('base64');

@@ -27,20 +27,26 @@ export const fieldMapResponse: ResponseTransformStrategy = {
 
     try {
       const rawBody = await ctx.upstreamResponse.text();
-      const parsed = JSON.parse(rawBody);
-      const mappings = parseMappingConfig(ctx.responseBodyTransform);
-      const mapped = applyFieldMapping(parsed, mappings);
+      try {
+        const parsed = JSON.parse(rawBody);
+        const mappings = parseMappingConfig(ctx.responseBodyTransform);
+        const mapped = applyFieldMapping(parsed, mappings);
 
-      responseHeaders.set('Content-Type', 'application/json');
-      return new Response(JSON.stringify(mapped), {
-        status: ctx.upstreamResponse.status,
-        headers: responseHeaders,
-      });
-    } catch (err) {
-      console.warn('[gateway] field-map transform failed, falling back to raw:', err);
-      responseHeaders.set('Content-Type', contentType);
-      const body = await ctx.upstreamResponse.arrayBuffer();
-      return new Response(body, {
+        responseHeaders.set('Content-Type', 'application/json');
+        return new Response(JSON.stringify(mapped), {
+          status: ctx.upstreamResponse.status,
+          headers: responseHeaders,
+        });
+      } catch (err) {
+        console.warn('[gateway] field-map transform failed, falling back to raw:', err);
+        responseHeaders.set('Content-Type', contentType);
+        return new Response(rawBody, {
+          status: ctx.upstreamResponse.status,
+          headers: responseHeaders,
+        });
+      }
+    } catch {
+      return new Response(null, {
         status: ctx.upstreamResponse.status,
         headers: responseHeaders,
       });

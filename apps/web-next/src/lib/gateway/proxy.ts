@@ -60,7 +60,6 @@ function recordFailure(slug: string): void {
  * @param timeout   - Timeout in milliseconds
  * @param retries   - Number of retry attempts on failure
  * @param allowedHosts - Allowed upstream hostnames (SSRF protection)
- * @param streaming - Whether SSE streaming is enabled for this connector
  */
 export async function proxyToUpstream(
   upstream: UpstreamRequest,

@@ -81,12 +81,9 @@ export function extractTeamContext(request: Request): TeamContext | null {
 
 async function authorizeJwt(token: string, request: Request): Promise<AuthResult | null> {
   try {
-    // Validate session directly against the database using the shell's
-    // shared auth utility — no HTTP round-trip to base-svc required.
     const user = await validateSession(token);
     if (!user) return null;
 
-    // Team context from x-team-id header, or personal scope fallback
     const teamId = request.headers.get('x-team-id') || personalScopeId(user.id);
 
     return {
@@ -137,6 +134,7 @@ async function authorizeApiKey(rawKey: string): Promise<AuthResult | null> {
     callerId: apiKey.createdBy,
     teamId: resolvedTeamId,
     apiKeyId: apiKey.id,
+    connectorId: apiKey.connectorId || undefined,
     planId: apiKey.planId || undefined,
     allowedEndpoints: apiKey.allowedEndpoints.length > 0 ? apiKey.allowedEndpoints : undefined,
     allowedIPs: apiKey.allowedIPs.length > 0 ? apiKey.allowedIPs : undefined,
@@ -163,11 +161,19 @@ export function verifyConnectorAccess(
   visibility: string
 ): boolean {
   if (visibility === 'public') return true;
+
+  let ownerMatch = false;
   if (connectorOwnerUserId) {
-    return auth.callerId === connectorOwnerUserId;
+    ownerMatch = auth.callerId === connectorOwnerUserId;
+  } else if (connectorTeamId) {
+    ownerMatch = auth.teamId === connectorTeamId;
   }
-  if (connectorTeamId) {
-    return auth.teamId === connectorTeamId;
+
+  if (!ownerMatch) return false;
+
+  if (auth.callerType === 'apiKey' && auth.connectorId) {
+    if (auth.connectorId !== connectorId) return false;
   }
-  return false;
+
+  return true;
 }

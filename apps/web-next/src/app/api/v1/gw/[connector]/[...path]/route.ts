@@ -116,10 +116,12 @@ async function handleRequest(
   // ── 6. IP Allowlist Check (supports CIDR ranges) ──
   if (auth.allowedIPs && auth.allowedIPs.length > 0) {
     const clientIP = getClientIP(request);
-    if (clientIP && !matchIPAllowlist(clientIP, auth.allowedIPs)) {
+    if (!clientIP || !matchIPAllowlist(clientIP, auth.allowedIPs)) {
       return buildErrorResponse(
         'FORBIDDEN',
-        'Request from this IP address is not allowed.',
+        clientIP
+          ? 'Request from this IP address is not allowed.'
+          : 'Unable to determine client IP for allowlist check.',
         403,
         requestId,
         traceId
