@@ -133,32 +133,44 @@ async function authorizeApiKey(rawKey: string): Promise<AuthResult | null> {
 /**
  * Verify the caller has access to the resolved connector.
  *
- * Three visibility modes:
+ * Visibility modes:
  *   - **public**: any authenticated caller can access.
  *   - **private / team** with ownerUserId: only the owning user may access.
- *   - **private / team** with teamId: caller's auth.teamId must match.
+ *   - **private / team** with teamId: caller's auth.teamId must match,
+ *     or caller in personal context with membership in the connector's team.
  */
-export function verifyConnectorAccess(
+export async function verifyConnectorAccess(
   auth: AuthResult,
   connectorId: string,
   connectorTeamId: string | null,
   connectorOwnerUserId: string | null,
   visibility: string
-): boolean {
-  if (visibility === 'public') return true;
-
-  let ownerMatch = false;
-  if (connectorOwnerUserId) {
-    ownerMatch = auth.callerId === connectorOwnerUserId;
-  } else if (connectorTeamId) {
-    ownerMatch = auth.teamId === connectorTeamId;
+): Promise<{ allowed: boolean; resolvedTeamId: string }> {
+  if (auth.callerType === 'apiKey' && auth.connectorId && auth.connectorId !== connectorId) {
+    return { allowed: false, resolvedTeamId: auth.teamId };
   }
 
-  if (!ownerMatch) return false;
-
-  if (auth.callerType === 'apiKey' && auth.connectorId) {
-    if (auth.connectorId !== connectorId) return false;
+  if (visibility === 'public') {
+    return { allowed: true, resolvedTeamId: auth.teamId };
   }
 
-  return true;
+  if (connectorOwnerUserId && auth.callerId === connectorOwnerUserId) {
+    return { allowed: true, resolvedTeamId: auth.teamId };
+  }
+
+  if (connectorTeamId && auth.teamId === connectorTeamId) {
+    return { allowed: true, resolvedTeamId: connectorTeamId };
+  }
+
+  if (connectorTeamId && auth.callerType === 'jwt' && auth.teamId.startsWith('personal:')) {
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: auth.callerId, teamId: connectorTeamId },
+      select: { id: true },
+    });
+    if (membership) {
+      return { allowed: true, resolvedTeamId: connectorTeamId };
+    }
+  }
+
+  return { allowed: false, resolvedTeamId: auth.teamId };
 }
