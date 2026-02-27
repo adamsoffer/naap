@@ -139,7 +139,9 @@ async function authorizeApiKey(rawKey: string): Promise<AuthResult | null> {
     .catch(() => {});
 
   const resolvedTeamId = apiKey.teamId
-    ?? (apiKey.ownerUserId ? personalScopeId(apiKey.ownerUserId) : '');
+    ?? (apiKey.ownerUserId ? personalScopeId(apiKey.ownerUserId) : null);
+
+  if (!resolvedTeamId) return null;
 
   return {
     authenticated: true,
